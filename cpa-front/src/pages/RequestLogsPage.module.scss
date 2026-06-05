@@ -1,0 +1,190 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.description {
+  margin: $spacing-xs 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 920px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+}
+
+.limitField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 136px;
+}
+
+.limitLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.buttonContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.errorBox {
+  padding: $spacing-md;
+  border: 1px solid var(--danger-color);
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--danger-color) 10%, transparent);
+  color: var(--danger-color);
+  font-size: 14px;
+}
+
+.warningBox {
+  padding: $spacing-md;
+  border: 1px solid color-mix(in srgb, var(--warning-color, #b78103) 38%, var(--border-color));
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--warning-color, #b78103) 10%, transparent);
+  color: var(--warning-color, #8a5c00);
+  font-size: 14px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: $spacing-md;
+
+  @media (max-width: 1080px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summaryCard {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.metricLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.metricValue {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.tableCard {
+  overflow: hidden;
+}
+
+.pricingNote {
+  margin-bottom: $spacing-md;
+  color: var(--text-secondary);
+  font-size: 14px;
+
+  a {
+    color: var(--primary-color);
+    text-decoration: none;
+  }
+}
+
+.placeholderText {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.searchBox {
+  width: min(360px, 100%);
+
+  :global(.form-group) {
+    margin: 0;
+  }
+}
+
+.searchIcon {
+  color: var(--text-tertiary);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1320px;
+
+  th,
+  td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: top;
+    font-size: 13px;
+  }
+
+  th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+}
+
+.numberCell {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  word-break: break-all;
+}
+
+.cellStack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subtle {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
