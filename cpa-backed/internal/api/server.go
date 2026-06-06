@@ -627,6 +627,7 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.PUT("/proxy-pool", s.mgmt.PutProxyPool)
 		mgmt.PATCH("/proxy-pool", s.mgmt.PatchProxyPool)
 		mgmt.DELETE("/proxy-pool", s.mgmt.DeleteProxyPool)
+		mgmt.POST("/proxy-pool/batch", s.mgmt.PostProxyPoolBatchAdd)
 		mgmt.GET("/proxy-pool/settings", s.mgmt.GetProxyPoolSettings)
 		mgmt.PUT("/proxy-pool/settings", s.mgmt.PutProxyPoolSettings)
 		mgmt.POST("/proxy-pool/test", s.mgmt.TestProxyPoolEntry)

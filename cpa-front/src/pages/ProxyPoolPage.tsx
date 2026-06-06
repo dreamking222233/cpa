@@ -33,6 +33,13 @@ type ProxyTestState = {
   error: string;
 };
 
+type BatchProxyParseResult = {
+  entries: ProxyPoolEntry[];
+  invalidValues: string[];
+  duplicateCount: number;
+  existingCount: number;
+};
+
 const parseProxyProtocol = (value: string): string => {
   try {
     const parsed = new URL(value.trim());
@@ -77,8 +84,54 @@ const cloneStrategy = (strategy: ProxyPoolStrategy): ProxyPoolStrategy => ({
   requestsPerProxy: strategy.requestsPerProxy,
 });
 
+const tokenizeBatchProxyInput = (value: string): string[] =>
+  value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const parseBatchProxyInput = (
+  value: string,
+  existingEntries: ProxyPoolEntry[],
+  disabled: boolean
+): BatchProxyParseResult => {
+  const existingUrls = new Set(existingEntries.map((entry) => entry.url.trim()).filter(Boolean));
+  const seenUrls = new Set<string>();
+  const entries: ProxyPoolEntry[] = [];
+  const invalidValues: string[] = [];
+  let duplicateCount = 0;
+  let existingCount = 0;
+
+  for (const token of tokenizeBatchProxyInput(value)) {
+    if (!isSupportedProxyUrl(token)) {
+      invalidValues.push(token);
+      continue;
+    }
+    if (existingUrls.has(token)) {
+      existingCount += 1;
+      continue;
+    }
+    if (seenUrls.has(token)) {
+      duplicateCount += 1;
+      continue;
+    }
+
+    seenUrls.add(token);
+    entries.push({
+      name: `批量代理 ${existingEntries.length + entries.length + 1}`,
+      url: token,
+      disabled,
+    });
+  }
+
+  return { entries, invalidValues, duplicateCount, existingCount };
+};
+
 const strategiesEqual = (left: ProxyPoolStrategy, right: ProxyPoolStrategy): boolean =>
   left.mode === right.mode && left.requestsPerProxy === right.requestsPerProxy;
+
+const proxyEntriesEqual = (left: ProxyPoolEntry, right: ProxyPoolEntry): boolean =>
+  left.name === right.name && left.url === right.url && left.disabled === right.disabled;
 
 const protocolLabel = (value: string): string => {
   const scheme = parseProxyProtocol(value);
@@ -113,10 +166,13 @@ export function ProxyPoolPage() {
   });
   const [requestLogs, setRequestLogs] = useState<ProxyPoolRequestLogEntry[]>([]);
   const [newEntry, setNewEntry] = useState<ProxyPoolEntry>({ name: '', url: '', disabled: false });
+  const [batchInput, setBatchInput] = useState('');
+  const [batchDisabled, setBatchDisabled] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [batchAdding, setBatchAdding] = useState(false);
   const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
   const [savingStrategy, setSavingStrategy] = useState(false);
@@ -196,6 +252,20 @@ export function ProxyPoolPage() {
 
   const activeCount = entries.filter((item) => !item.disabled).length;
   const disabledCount = entries.length - activeCount;
+  const proxyEntriesDirty = useMemo(
+    () =>
+      drafts.length !== entries.length ||
+      drafts.some((entry, index) => {
+        const original = entries[index];
+        return !original || !proxyEntriesEqual(original, entry);
+      }),
+    [drafts, entries]
+  );
+  const pageDraftDirty = proxyEntriesDirty || strategyDirty;
+  const batchPreview = useMemo(
+    () => parseBatchProxyInput(batchInput, entries, batchDisabled),
+    [batchDisabled, batchInput, entries]
+  );
 
   const setTestState = useCallback((key: string, next: ProxyTestState) => {
     setTestStates((prev) => ({ ...prev, [key]: next }));
@@ -367,6 +437,58 @@ export function ProxyPoolPage() {
       setAdding(false);
     }
   }, [loadData, newEntry, showNotification, t, validateProxyUrl]);
+
+  const handleBatchAdd = useCallback(async () => {
+    if (!batchInput.trim()) {
+      showNotification(
+        t('proxy_pool.notifications.batch_required', {
+          defaultValue: '请先粘贴至少一个代理地址。',
+        }),
+        'error'
+      );
+      return;
+    }
+
+    if (batchPreview.entries.length === 0) {
+      showNotification(
+        t('proxy_pool.notifications.batch_no_valid', {
+          defaultValue: '没有可添加的有效代理地址。',
+        }),
+        'error'
+      );
+      return;
+    }
+
+    if (pageDraftDirty) {
+      showNotification(
+        t('proxy_pool.notifications.batch_dirty_entries', {
+          defaultValue: '请先保存或重置当前页面中的未保存修改，再批量添加。',
+        }),
+        'error'
+      );
+      return;
+    }
+
+    setBatchAdding(true);
+    try {
+      const result = await proxyPoolApi.batchAdd(batchPreview.entries);
+      setBatchInput('');
+      showNotification(
+        t('proxy_pool.notifications.batch_added', {
+          count: result.added,
+          defaultValue: `已批量添加 ${result.added} 个代理。`,
+        }),
+        'success'
+      );
+      await loadData(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('common.unknown_error');
+      showNotification(message, 'error');
+      await loadData(true);
+    } finally {
+      setBatchAdding(false);
+    }
+  }, [batchInput, batchPreview.entries, loadData, pageDraftDirty, showNotification, t]);
 
   const handleSaveStrategy = useCallback(async () => {
     setSavingStrategy(true);
@@ -725,6 +847,126 @@ export function ProxyPoolPage() {
               {t('common.add')}
             </span>
           </Button>
+        </div>
+
+        <div className={styles.batchSection}>
+          <div className={styles.rowHeader}>
+            <div>
+              <div className={styles.rowTitle}>
+                {t('proxy_pool.batch.title', { defaultValue: '批量添加' })}
+              </div>
+              <div className={styles.batchHint}>
+                {t('proxy_pool.batch.hint', {
+                  defaultValue: '每行粘贴一个代理地址。',
+                })}
+              </div>
+            </div>
+            <div className={styles.toggleGroup}>
+              <div className={styles.toggleLabel}>
+                {t('proxy_pool.fields.enabled', { defaultValue: '参与调度' })}
+              </div>
+              <ToggleSwitch
+                checked={!batchDisabled}
+                onChange={(checked) => setBatchDisabled(!checked)}
+                ariaLabel={t('proxy_pool.fields.enabled', { defaultValue: '参与调度' })}
+                disabled={disableControls}
+              />
+            </div>
+          </div>
+
+          <textarea
+            className={styles.batchTextarea}
+            value={batchInput}
+            onChange={(event) => setBatchInput(event.target.value)}
+            placeholder={[
+              'socks5://user:pass@host-a:3000',
+              'socks5://user:pass@host-b:3000',
+              'http://user:pass@host-c:8080',
+            ].join('\n')}
+            disabled={disableControls}
+            rows={7}
+          />
+
+          {batchInput.trim() ? (
+            <div className={styles.batchSummary}>
+              <span className={styles.batchSummaryItem}>
+                {t('proxy_pool.batch.valid_count', {
+                  count: batchPreview.entries.length,
+                  defaultValue: `可添加 ${batchPreview.entries.length} 个`,
+                })}
+              </span>
+              {batchPreview.existingCount > 0 ? (
+                <span className={styles.batchSummaryItem}>
+                  {t('proxy_pool.batch.existing_count', {
+                    count: batchPreview.existingCount,
+                    defaultValue: `已存在 ${batchPreview.existingCount} 个`,
+                  })}
+                </span>
+              ) : null}
+              {batchPreview.duplicateCount > 0 ? (
+                <span className={styles.batchSummaryItem}>
+                  {t('proxy_pool.batch.duplicate_count', {
+                    count: batchPreview.duplicateCount,
+                    defaultValue: `重复 ${batchPreview.duplicateCount} 个`,
+                  })}
+                </span>
+              ) : null}
+              {batchPreview.invalidValues.length > 0 ? (
+                <span className={`${styles.batchSummaryItem} ${styles.batchSummaryError}`}>
+                  {t('proxy_pool.batch.invalid_count', {
+                    count: batchPreview.invalidValues.length,
+                    defaultValue: `无效 ${batchPreview.invalidValues.length} 个`,
+                  })}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {batchPreview.invalidValues.length > 0 ? (
+            <div className={styles.batchInvalidList}>
+              {batchPreview.invalidValues.slice(0, 3).map((item) => (
+                <div className={styles.mono} key={item}>
+                  {item}
+                </div>
+              ))}
+              {batchPreview.invalidValues.length > 3 ? (
+                <div>
+                  {t('proxy_pool.batch.more_invalid', {
+                    count: batchPreview.invalidValues.length - 3,
+                    defaultValue: `还有 ${batchPreview.invalidValues.length - 3} 个无效地址未展示`,
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {pageDraftDirty ? (
+            <div className={styles.batchWarning}>
+              {t('proxy_pool.batch.dirty_warning', {
+                defaultValue: '当前页面有未保存修改，请先保存或重置后再批量添加。',
+              })}
+            </div>
+          ) : null}
+
+          <div className={styles.rowActions}>
+            <Button
+              variant="secondary"
+              onClick={() => setBatchInput('')}
+              disabled={!batchInput.trim() || disableControls}
+            >
+              {t('common.clear', { defaultValue: '清空' })}
+            </Button>
+            <Button
+              onClick={() => void handleBatchAdd()}
+              loading={batchAdding}
+              disabled={disableControls || pageDraftDirty || batchPreview.entries.length === 0}
+            >
+              <span className={styles.buttonContent}>
+                <IconPlus size={16} />
+                {t('proxy_pool.batch.add_button', { defaultValue: '批量添加' })}
+              </span>
+            </Button>
+          </div>
         </div>
       </Card>
 

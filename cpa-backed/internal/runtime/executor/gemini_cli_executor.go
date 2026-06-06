@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -33,16 +34,22 @@ import (
 )
 
 const (
-	codeAssistEndpoint      = "https://cloudcode-pa.googleapis.com"
-	codeAssistVersion       = "v1internal"
-	geminiOAuthClientID     = "REDACTED_GEMINI_GOOGLE_OAUTH_CLIENT_ID"
-	geminiOAuthClientSecret = "REDACTED_GEMINI_GOOGLE_OAUTH_CLIENT_SECRET"
+	codeAssistEndpoint = "https://cloudcode-pa.googleapis.com"
+	codeAssistVersion  = "v1internal"
 )
 
 var geminiOAuthScopes = []string{
 	"https://www.googleapis.com/auth/cloud-platform",
 	"https://www.googleapis.com/auth/userinfo.email",
 	"https://www.googleapis.com/auth/userinfo.profile",
+}
+
+func geminiOAuthClientID() string {
+	return strings.TrimSpace(os.Getenv("GEMINI_OAUTH_CLIENT_ID"))
+}
+
+func geminiOAuthClientSecret() string {
+	return strings.TrimSpace(os.Getenv("GEMINI_OAUTH_CLIENT_SECRET"))
 }
 
 // GeminiCLIExecutor talks to the Cloud Code Assist endpoint using OAuth credentials from auth metadata.
@@ -657,8 +664,8 @@ func prepareGeminiCLITokenSource(ctx context.Context, cfg *config.Config, auth *
 	base, token := buildToken(metadata)
 
 	conf := &oauth2.Config{
-		ClientID:     geminiOAuthClientID,
-		ClientSecret: geminiOAuthClientSecret,
+		ClientID:     geminiOAuthClientID(),
+		ClientSecret: geminiOAuthClientSecret(),
 		Scopes:       geminiOAuthScopes,
 		Endpoint:     google.Endpoint,
 	}

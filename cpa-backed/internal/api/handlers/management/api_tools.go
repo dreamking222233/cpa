@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -23,23 +24,29 @@ import (
 
 const defaultAPICallTimeout = 60 * time.Second
 
-const (
-	geminiOAuthClientID     = "REDACTED_GEMINI_GOOGLE_OAUTH_CLIENT_ID"
-	geminiOAuthClientSecret = "REDACTED_GEMINI_GOOGLE_OAUTH_CLIENT_SECRET"
-)
-
 var geminiOAuthScopes = []string{
 	"https://www.googleapis.com/auth/cloud-platform",
 	"https://www.googleapis.com/auth/userinfo.email",
 	"https://www.googleapis.com/auth/userinfo.profile",
 }
 
-const (
-	antigravityOAuthClientID     = "REDACTED_ANTIGRAVITY_GOOGLE_OAUTH_CLIENT_ID"
-	antigravityOAuthClientSecret = "REDACTED_ANTIGRAVITY_GOOGLE_OAUTH_CLIENT_SECRET"
-)
-
 var antigravityOAuthTokenURL = "https://oauth2.googleapis.com/token"
+
+func geminiOAuthClientID() string {
+	return strings.TrimSpace(os.Getenv("GEMINI_OAUTH_CLIENT_ID"))
+}
+
+func geminiOAuthClientSecret() string {
+	return strings.TrimSpace(os.Getenv("GEMINI_OAUTH_CLIENT_SECRET"))
+}
+
+func antigravityOAuthClientID() string {
+	return strings.TrimSpace(os.Getenv("ANTIGRAVITY_OAUTH_CLIENT_ID"))
+}
+
+func antigravityOAuthClientSecret() string {
+	return strings.TrimSpace(os.Getenv("ANTIGRAVITY_OAUTH_CLIENT_SECRET"))
+}
 
 type apiCallRequest struct {
 	AuthIndexSnake  *string           `json:"auth_index"`
@@ -310,8 +317,8 @@ func (h *Handler) refreshGeminiOAuthAccessToken(ctx context.Context, auth *corea
 	}
 
 	conf := &oauth2.Config{
-		ClientID:     geminiOAuthClientID,
-		ClientSecret: geminiOAuthClientSecret,
+		ClientID:     geminiOAuthClientID(),
+		ClientSecret: geminiOAuthClientSecret(),
 		Scopes:       geminiOAuthScopes,
 		Endpoint:     google.Endpoint,
 	}
@@ -365,8 +372,8 @@ func (h *Handler) refreshAntigravityOAuthAccessToken(ctx context.Context, auth *
 		tokenURL = "https://oauth2.googleapis.com/token"
 	}
 	form := url.Values{}
-	form.Set("client_id", antigravityOAuthClientID)
-	form.Set("client_secret", antigravityOAuthClientSecret)
+	form.Set("client_id", antigravityOAuthClientID())
+	form.Set("client_secret", antigravityOAuthClientSecret())
 	form.Set("grant_type", "refresh_token")
 	form.Set("refresh_token", refreshToken)
 

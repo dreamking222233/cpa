@@ -32,6 +32,12 @@ export interface ProxyPoolTestResult {
   exitIp: string;
 }
 
+export interface ProxyPoolBatchAddResult {
+  status: string;
+  added: number;
+  skipped: number;
+}
+
 type ProxyPoolAction = 'add' | 'update' | 'delete';
 
 type RawProxyPoolResponse = {
@@ -137,6 +143,10 @@ export const proxyPoolApi = {
       index,
       value,
     });
+  },
+
+  batchAdd(entries: ProxyPoolEntry[]) {
+    return apiClient.post<ProxyPoolBatchAddResult>('/proxy-pool/batch', { value: entries });
   },
 
   clear() {

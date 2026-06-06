@@ -234,6 +234,91 @@
   flex-wrap: wrap;
 }
 
+.batchSection {
+  margin-top: $spacing-lg;
+  padding-top: $spacing-lg;
+  border-top: 1px solid var(--border-color);
+}
+
+.batchHint {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.batchTextarea {
+  width: 100%;
+  min-height: 168px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 13px;
+  line-height: 1.5;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+}
+
+.batchSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: $spacing-md;
+}
+
+.batchSummaryItem {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-primary) 86%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.batchSummaryError {
+  border-color: rgba($error-color, 0.28);
+  background: rgba($error-color, 0.1);
+  color: var(--danger-color);
+}
+
+.batchInvalidList {
+  margin-top: $spacing-sm;
+  padding: 10px 12px;
+  border: 1px solid rgba($error-color, 0.28);
+  border-radius: $radius-md;
+  background: rgba($error-color, 0.08);
+  color: var(--danger-color);
+  font-size: 12px;
+}
+
+.batchWarning {
+  margin-top: $spacing-sm;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning-color, #b78103) 38%, var(--border-color));
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--warning-color, #b78103) 10%, transparent);
+  color: var(--warning-color, #8a5c00);
+  font-size: 13px;
+}
+
 .testInfo,
 .testError,
 .testResult {

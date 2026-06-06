@@ -27,6 +27,12 @@ type proxyPoolPayload struct {
 	Value []config.ProxyPoolEntry `json:"value"`
 }
 
+type proxyPoolBatchAddResult struct {
+	Status  string `json:"status"`
+	Added   int    `json:"added"`
+	Skipped int    `json:"skipped"`
+}
+
 type proxyPoolSettingsPayload struct {
 	Value config.ProxyPoolStrategy `json:"value"`
 }
@@ -158,6 +164,59 @@ func (h *Handler) PatchProxyPool(c *gin.Context) {
 	}
 
 	h.persist(c)
+}
+
+// PostProxyPoolBatchAdd appends multiple proxy-pool entries after validation and de-duplication.
+func (h *Handler) PostProxyPoolBatchAdd(c *gin.Context) {
+	if h == nil || h.cfg == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "configuration unavailable"})
+		return
+	}
+
+	var body proxyPoolPayload
+	if errBindJSON := c.ShouldBindJSON(&body); errBindJSON != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		return
+	}
+
+	entries, errNormalize := normalizeProxyPoolEntries(body.Value)
+	if errNormalize != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errNormalize.Error()})
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	existingURLs := make(map[string]struct{}, len(h.cfg.ProxyPool)+len(entries))
+	for i := range h.cfg.ProxyPool {
+		url := strings.TrimSpace(h.cfg.ProxyPool[i].URL)
+		if url != "" {
+			existingURLs[url] = struct{}{}
+		}
+	}
+
+	added := 0
+	skipped := 0
+	for i := range entries {
+		if _, exists := existingURLs[entries[i].URL]; exists {
+			skipped++
+			continue
+		}
+		existingURLs[entries[i].URL] = struct{}{}
+		h.cfg.ProxyPool = append(h.cfg.ProxyPool, entries[i])
+		added++
+	}
+
+	if errSave := config.SaveConfigPreserveComments(h.configFilePath, h.cfg); errSave != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to save config: %v", errSave)})
+		return
+	}
+	c.JSON(http.StatusOK, proxyPoolBatchAddResult{
+		Status:  "ok",
+		Added:   added,
+		Skipped: skipped,
+	})
 }
 
 // DeleteProxyPool clears the outbound proxy pool.

@@ -17,6 +17,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,8 +48,6 @@ const (
 	antigravityCountTokensPath             = "/v1internal:countTokens"
 	antigravityStreamPath                  = "/v1internal:streamGenerateContent"
 	antigravityGeneratePath                = "/v1internal:generateContent"
-	antigravityClientID                    = "REDACTED_ANTIGRAVITY_GOOGLE_OAUTH_CLIENT_ID"
-	antigravityClientSecret                = "REDACTED_ANTIGRAVITY_GOOGLE_OAUTH_CLIENT_SECRET"
 	defaultAntigravityAgent                = "antigravity/1.21.9 darwin/arm64" // fallback only; overridden at runtime by misc.AntigravityUserAgent()
 	antigravityAuthType                    = "antigravity"
 	refreshSkew                            = 3000 * time.Second
@@ -58,6 +57,14 @@ const (
 	antigravityInstantRetryThreshold       = 3 * time.Second
 	// systemInstruction              = "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.You are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.**Absolute paths only****Proactiveness**"
 )
+
+func antigravityClientID() string {
+	return strings.TrimSpace(os.Getenv("ANTIGRAVITY_OAUTH_CLIENT_ID"))
+}
+
+func antigravityClientSecret() string {
+	return strings.TrimSpace(os.Getenv("ANTIGRAVITY_OAUTH_CLIENT_SECRET"))
+}
 
 type antigravity429Category string
 
@@ -1760,8 +1767,8 @@ func (e *AntigravityExecutor) refreshToken(ctx context.Context, auth *cliproxyau
 	}
 
 	form := url.Values{}
-	form.Set("client_id", antigravityClientID)
-	form.Set("client_secret", antigravityClientSecret)
+	form.Set("client_id", antigravityClientID())
+	form.Set("client_secret", antigravityClientSecret())
 	form.Set("grant_type", "refresh_token")
 	form.Set("refresh_token", refreshToken)
 
