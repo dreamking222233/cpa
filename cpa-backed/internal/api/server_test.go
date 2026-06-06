@@ -86,6 +86,53 @@ func TestHealthz(t *testing.T) {
 	})
 }
 
+func TestRootServesManagementPanelForBrowserRequests(t *testing.T) {
+	staticDir := t.TempDir()
+	t.Setenv("MANAGEMENT_STATIC_PATH", staticDir)
+	if err := os.WriteFile(filepath.Join(staticDir, "management.html"), []byte("<html><title>Management</title></html>"), 0o600); err != nil {
+		t.Fatalf("failed to write management asset: %v", err)
+	}
+
+	server := newTestServer(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml")
+	rr := httptest.NewRecorder()
+	server.engine.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if contentType := rr.Header().Get("Content-Type"); !strings.Contains(contentType, "text/html") {
+		t.Fatalf("content-type = %q, want text/html", contentType)
+	}
+	if !strings.Contains(rr.Body.String(), "<title>Management</title>") {
+		t.Fatalf("body did not contain management panel HTML: %s", rr.Body.String())
+	}
+}
+
+func TestRootKeepsAPIInfoForJSONRequests(t *testing.T) {
+	server := newTestServer(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept", "application/json")
+	rr := httptest.NewRecorder()
+	server.engine.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	var resp struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response JSON: %v; body=%s", err, rr.Body.String())
+	}
+	if resp.Message != "CLI Proxy API Server" {
+		t.Fatalf("message = %q, want %q", resp.Message, "CLI Proxy API Server")
+	}
+}
+
 func TestV2ResponsesRoutesAreRegistered(t *testing.T) {
 	server := newTestServer(t)
 

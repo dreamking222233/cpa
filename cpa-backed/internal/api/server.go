@@ -436,6 +436,10 @@ func (s *Server) setupRoutes() {
 
 	// Root endpoint
 	s.engine.GET("/", func(c *gin.Context) {
+		if requestPrefersHTML(c) {
+			s.serveManagementControlPanel(c)
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"message": "CLI Proxy API Server",
 			"endpoints": []string{
@@ -524,6 +528,14 @@ func (s *Server) setupRoutes() {
 	})
 
 	// Management routes are registered lazily by registerManagementRoutes when a secret is configured.
+}
+
+func requestPrefersHTML(c *gin.Context) bool {
+	if c == nil {
+		return false
+	}
+	accept := strings.ToLower(c.GetHeader("Accept"))
+	return strings.Contains(accept, "text/html")
 }
 
 func registerOpenAIResponsesRoutes(group *gin.RouterGroup, handler *openai.OpenAIResponsesAPIHandler) {
